@@ -26,11 +26,11 @@ func main() {
 		log.Fatal("Failed to initialize bot: ", err)
 	}
 
-	log.Printf(" Authorized on account @%s", telegramBot.Self.UserName)
+	log.Printf("Authorized on account @%s", telegramBot.Self.UserName)
 
 	apiClient := api.NewAPIClient(cfg.WaifuImURL, cfg.WaifuPicsURL, cfg.WaifuItURL)
-	log.Printf(" API Client initialized")
-	log.Printf("   Priority: %s -> %s -> %s", cfg.APIPrimary, cfg.APISecondary, cfg.APITertiary)
+	log.Printf("API Client initialized")
+	log.Printf("Priority: %s -> %s -> %s", cfg.APIPrimary, cfg.APISecondary, cfg.APITertiary)
 
 	router := bot.NewRouter(telegramBot, apiClient, cfg)
 	router.Start()

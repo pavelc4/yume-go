@@ -20,33 +20,35 @@ type APIClient struct {
 	WaifuImURL   string
 	WaifuPicsURL string
 	WaifuItURL   string
+
+	fetchers map[string]func(bool) (*Waifu, error)
 }
 
 func NewAPIClient(waifuImURL, waifuPicsURL, waifuItURL string) *APIClient {
-	return &APIClient{
+	client := &APIClient{
 		WaifuImURL:   waifuImURL,
 		WaifuPicsURL: waifuPicsURL,
 		WaifuItURL:   waifuItURL,
 	}
+
+	client.fetchers = map[string]func(bool) (*Waifu, error){
+		"waifu.im":   client.fetchFromWaifuIm,
+		"waifu.pics": client.fetchFromWaifuPics,
+		"waifu.it":   client.fetchFromWaifuIt,
+	}
+
+	return client
 }
 
 func (c *APIClient) FetchRandomWaifu(isNSFW bool, apiPriority []string) (*Waifu, error) {
 	var lastErr error
 
 	for _, apiName := range apiPriority {
-		var waifu *Waifu
-		var err error
-
-		switch apiName {
-		case "waifu.im":
-			waifu, err = c.fetchFromWaifuIm(isNSFW)
-		case "waifu.pics":
-			waifu, err = c.fetchFromWaifuPics(isNSFW)
-		case "waifu.it":
-			waifu, err = c.fetchFromWaifuIt(isNSFW)
-		default:
+		fetcher, ok := c.fetchers[apiName]
+		if !ok {
 			continue
 		}
+		waifu, err := fetcher(isNSFW)
 		if err == nil && waifu != nil {
 			waifu.Source = apiName
 			return waifu, nil
@@ -59,12 +61,7 @@ func (c *APIClient) FetchRandomWaifu(isNSFW bool, apiPriority []string) (*Waifu,
 
 func (c *APIClient) fetchFromWaifuIm(isNSFW bool) (*Waifu, error) {
 	params := url.Values{}
-	if isNSFW {
-		params.Add("is_nsfw", "true")
-	} else {
-		params.Add("is_nsfw", "false")
-	}
-
+	params.Add("is_nsfw", fmt.Sprintf("%t", isNSFW))
 	fullURL := fmt.Sprintf("%s?%s", c.WaifuImURL, params.Encode())
 
 	resp, err := http.Get(fullURL)
@@ -101,10 +98,15 @@ func (c *APIClient) fetchFromWaifuIm(isNSFW bool) (*Waifu, error) {
 		tags[i] = tag.Name
 	}
 
+	name := "Waifu"
+	if len(tags) > 0 {
+		name = tags[0]
+	}
+
 	return &Waifu{
 		URL:     img.URL,
 		ImageID: fmt.Sprintf("%d", img.ImageID),
-		Name:    tags[0],
+		Name:    name,
 		Tags:    tags,
 	}, nil
 }
@@ -114,7 +116,6 @@ func (c *APIClient) fetchFromWaifuPics(isNSFW bool) (*Waifu, error) {
 	if isNSFW {
 		category = "nsfw"
 	}
-
 	fullURL := fmt.Sprintf("%s/%s/waifu", c.WaifuPicsURL, category)
 
 	resp, err := http.Get(fullURL)
