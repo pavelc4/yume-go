@@ -12,29 +12,17 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev") && \
-    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
-    BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ") && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build \
-    -ldflags="-s -w \
-      -X main.version=$VERSION \
-      -X main.commit=$COMMIT \
-      -X main.buildTime=$BUILD_TIME \
-      -extldflags '-static'" \
-    -trimpath \
-    -tags netgo \
-    -o yume-go \
-    cmd/bot/main.go && \
+    go build -ldflags="-s -w" -trimpath -o yume-go cmd/bot/main.go && \
     upx --best --lzma yume-go
 
 FROM debian:bookworm-slim
 
 LABEL maintainer="Dimas <your-email@example.com>" \
-      description="Yume-Go Telegram Waifu Gacha Bot"
+    description="Yume-Go Telegram Waifu Gacha Bot"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates tzdata procps && \
+    ca-certificates procps && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN useradd -m -u 1000 -s /bin/bash yume
