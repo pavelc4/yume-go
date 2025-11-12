@@ -3,7 +3,6 @@ package bot
 import (
 	"log"
 	"sync"
-	"time"
 
 	"yume-go/internal/api"
 	"yume-go/internal/config"
@@ -13,21 +12,18 @@ import (
 )
 
 type Router struct {
-	bot          *tgbotapi.BotAPI
-	apiClient    *api.APIClient
-	config       *config.Config
-	wg           sync.WaitGroup
-	rateLimiter  map[int64]time.Time
-	limiterMutex sync.RWMutex
-	commands     map[string]func(*tgbotapi.BotAPI, *tgbotapi.Message)
+	bot       *tgbotapi.BotAPI
+	apiClient *api.APIClient
+	config    *config.Config
+	wg        sync.WaitGroup
+	commands  map[string]func(*tgbotapi.BotAPI, *tgbotapi.Message)
 }
 
 func NewRouter(bot *tgbotapi.BotAPI, apiClient *api.APIClient, cfg *config.Config) *Router {
 	r := &Router{
-		bot:         bot,
-		apiClient:   apiClient,
-		config:      cfg,
-		rateLimiter: make(map[int64]time.Time),
+		bot:       bot,
+		apiClient: apiClient,
+		config:    cfg,
 	}
 
 	r.commands = map[string]func(*tgbotapi.BotAPI, *tgbotapi.Message){
@@ -71,19 +67,6 @@ func (r *Router) Start() {
 func (r *Router) handleCommandConcurrent(message *tgbotapi.Message) {
 	defer r.wg.Done()
 
-	r.limiterMutex.Lock()
-	lastRequest, exists := r.rateLimiter[message.From.ID]
-	if exists && time.Since(lastRequest) < 2*time.Second {
-		r.limiterMutex.Unlock()
-		log.Printf("Rate limited user %d", message.From.ID)
-		r.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Wait a moment, don't spam!"))
-		return
-	}
-	r.rateLimiter[message.From.ID] = time.Now()
-	r.limiterMutex.Unlock()
-
-	go r.cleanupRateLimiter()
-
 	cmd := message.Command()
 	log.Printf("Processing command: /%s from user %d", cmd, message.From.ID)
 
@@ -91,17 +74,5 @@ func (r *Router) handleCommandConcurrent(message *tgbotapi.Message) {
 		handlerFunc(r.bot, message)
 	} else {
 		r.bot.Send(tgbotapi.NewMessage(message.Chat.ID, "Unknown command. Type /help for assistance."))
-	}
-}
-
-func (r *Router) cleanupRateLimiter() {
-	r.limiterMutex.Lock()
-	defer r.limiterMutex.Unlock()
-
-	now := time.Now()
-	for userID, lastTime := range r.rateLimiter {
-		if now.Sub(lastTime) > 5*time.Minute {
-			delete(r.rateLimiter, userID)
-		}
 	}
 }
