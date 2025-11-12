@@ -48,7 +48,9 @@ func HandleGacha(bot *tgbotapi.BotAPI, message *tgbotapi.Message, apiClient *api
 
 	apiPriority := []string{cfg.APIPrimary, cfg.APISecondary, cfg.APITertiary}
 
-	waifu, err := apiClient.FetchRandomWaifu(false, apiPriority)
+	isAnu := IsUserAnuEnabled(message.From.ID)
+	waifu, err := apiClient.FetchRandomWaifu(isAnu, apiPriority)
+
 	if err != nil {
 		log.Printf("Error fetching waifu: %v", err)
 		msg := tgbotapi.NewMessage(message.Chat.ID, "Sorry, the gacha failed. Please try again!")

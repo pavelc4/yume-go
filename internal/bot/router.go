@@ -29,6 +29,7 @@ func NewRouter(bot *tgbotapi.BotAPI, apiClient *api.APIClient, cfg *config.Confi
 	r.commands = map[string]func(*tgbotapi.BotAPI, *tgbotapi.Message){
 		"start": handler.HandleStart,
 		"help":  handler.HandleHelp,
+		"anu":   handler.HandleAnuToggleUser,
 	}
 
 	r.commands["gacha"] = func(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
