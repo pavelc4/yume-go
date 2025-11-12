@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"yume-go/internal/api"
@@ -11,6 +12,35 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+func escapeHTML(s string) string {
+	if s == "" {
+		return s
+	}
+	r := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		"\"", "&quot;",
+	)
+	return r.Replace(s)
+}
+
+func buildCaptionSimple(waifu *api.Waifu) string {
+	char := waifu.Character
+	if char == "" {
+		if waifu.Name != "" {
+			char = waifu.Name
+		} else if len(waifu.Tags) > 0 {
+			char = waifu.Tags[0]
+		} else {
+			char = "Unknown"
+		}
+	}
+	charEsc := escapeHTML(char)
+	idEsc := escapeHTML(waifu.ImageID)
+	return fmt.Sprintf("✨ You got: <b>%s</b>\nID: %s", charEsc, idEsc)
+}
 
 func HandleGacha(bot *tgbotapi.BotAPI, message *tgbotapi.Message, apiClient *api.APIClient, cfg *config.Config) {
 	typing := tgbotapi.NewChatAction(message.Chat.ID, tgbotapi.ChatTyping)
@@ -40,8 +70,7 @@ func HandleGacha(bot *tgbotapi.BotAPI, message *tgbotapi.Message, apiClient *api
 	}
 	defer util.CleanupTemp(result.FolderPath)
 
-	caption := fmt.Sprintf("✨ You got: %s\nID: %s\nSource: %s\nSize: %.2f MB",
-		waifu.Name, waifu.ImageID, waifu.Source, float64(result.FileSize)/(1024*1024))
+	caption := buildCaptionSimple(waifu)
 
 	sendDone := make(chan error, 1)
 
@@ -52,10 +81,12 @@ func HandleGacha(bot *tgbotapi.BotAPI, message *tgbotapi.Message, apiClient *api
 			log.Printf("File size %d bytes, sending as document", result.FileSize)
 			doc := tgbotapi.NewDocument(message.Chat.ID, tgbotapi.FilePath(result.FilePath))
 			doc.Caption = caption
+			doc.ParseMode = "HTML"
 			_, err = bot.Send(doc)
 		} else {
 			photo := tgbotapi.NewPhoto(message.Chat.ID, tgbotapi.FilePath(result.FilePath))
 			photo.Caption = caption
+			photo.ParseMode = "HTML"
 			_, err = bot.Send(photo)
 		}
 
@@ -70,11 +101,11 @@ func HandleGacha(bot *tgbotapi.BotAPI, message *tgbotapi.Message, apiClient *api
 			bot.Send(msg)
 			return
 		}
-		log.Printf("Successfully sent waifu %s (ID: %s, %.2f MB) to user %d",
-			waifu.Name, waifu.ImageID, float64(result.FileSize)/(1024*1024), message.From.ID)
+		log.Printf("Successfully sent waifu %s (ID: %s) to user %d",
+			waifu.Character, waifu.ImageID, message.From.ID)
 
 	case <-time.After(60 * time.Second):
-		log.Printf("Send timeout for waifu %s (ID: %s)", waifu.Name, waifu.ImageID)
+		log.Printf("Send timeout for waifu %s (ID: %s)", waifu.Character, waifu.ImageID)
 		msg := tgbotapi.NewMessage(message.Chat.ID, "Upload timeout. Try again!")
 		bot.Send(msg)
 		return

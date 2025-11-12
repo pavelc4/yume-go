@@ -9,11 +9,15 @@ import (
 )
 
 type Waifu struct {
-	URL     string   `json:"url"`
-	ImageID string   `json:"image_id"`
-	Name    string   `json:"name"`
-	Tags    []string `json:"tags"`
-	Source  string   `json:"source"`
+	URL       string   `json:"url"`
+	ImageID   string   `json:"image_id"`
+	Name      string   `json:"name"`
+	Tags      []string `json:"tags"`
+	Source    string   `json:"source"`
+	Character string   `json:"character"`
+	Origin    string   `json:"origin"`
+	Artist    string   `json:"artist"`
+	PageURL   string   `json:"page_url"`
 }
 
 type APIClient struct {
@@ -50,13 +54,35 @@ func (c *APIClient) FetchRandomWaifu(isNSFW bool, apiPriority []string) (*Waifu,
 		}
 		waifu, err := fetcher(isNSFW)
 		if err == nil && waifu != nil {
-			waifu.Source = apiName
+			if waifu.Source == "" {
+				waifu.Source = apiName
+			}
+			if waifu.Character == "" {
+				if waifu.Name != "" {
+					waifu.Character = waifu.Name
+				} else if len(waifu.Tags) > 0 {
+					waifu.Character = waifu.Tags[0]
+				} else {
+					waifu.Character = "Unknown"
+				}
+			}
 			return waifu, nil
 		}
 		lastErr = err
 		log.Printf("Failed to fetch from %s: %v", apiName, err)
 	}
 	return nil, fmt.Errorf("all APIs failed, last error: %w", lastErr)
+}
+
+func buildWaifuImPageURLFromNameOrTag(name string, tags []string) string {
+	keyword := name
+	if keyword == "" && len(tags) > 0 {
+		keyword = tags[0]
+	}
+	if keyword == "" {
+		return "https://waifu.im/"
+	}
+	return "https://waifu.im/?selected_tags=" + url.QueryEscape(keyword)
 }
 
 func (c *APIClient) fetchFromWaifuIm(isNSFW bool) (*Waifu, error) {
@@ -87,7 +113,6 @@ func (c *APIClient) fetchFromWaifuIm(isNSFW bool) (*Waifu, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-
 	if len(result.Images) == 0 {
 		return nil, fmt.Errorf("no images found")
 	}
@@ -103,11 +128,16 @@ func (c *APIClient) fetchFromWaifuIm(isNSFW bool) (*Waifu, error) {
 		name = tags[0]
 	}
 
+	pageURL := buildWaifuImPageURLFromNameOrTag(name, tags)
+
 	return &Waifu{
-		URL:     img.URL,
-		ImageID: fmt.Sprintf("%d", img.ImageID),
-		Name:    name,
-		Tags:    tags,
+		URL:       img.URL,
+		ImageID:   fmt.Sprintf("%d", img.ImageID),
+		Name:      name,
+		Tags:      tags,
+		Source:    "waifu.im",
+		PageURL:   pageURL,
+		Character: name,
 	}, nil
 }
 
@@ -131,16 +161,18 @@ func (c *APIClient) fetchFromWaifuPics(isNSFW bool) (*Waifu, error) {
 	var result struct {
 		URL string `json:"url"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
 
 	return &Waifu{
-		URL:     result.URL,
-		ImageID: "waifu-pics",
-		Name:    "Waifu",
-		Tags:    []string{"waifu"},
+		URL:       result.URL,
+		ImageID:   "waifu-pics",
+		Name:      "Waifu",
+		Tags:      []string{"waifu"},
+		Source:    "waifu.pics",
+		PageURL:   "",
+		Character: "Waifu",
 	}, nil
 }
 
@@ -161,15 +193,17 @@ func (c *APIClient) fetchFromWaifuIt(isNSFW bool) (*Waifu, error) {
 		URL  string `json:"url"`
 		Name string `json:"name"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
 
 	return &Waifu{
-		URL:     result.URL,
-		ImageID: "waifu-it",
-		Name:    result.Name,
-		Tags:    []string{"waifu"},
+		URL:       result.URL,
+		ImageID:   "waifu-it",
+		Name:      result.Name,
+		Tags:      []string{"waifu"},
+		Source:    "waifu.it",
+		PageURL:   "",
+		Character: result.Name,
 	}, nil
 }
