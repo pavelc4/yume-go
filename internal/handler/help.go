@@ -40,6 +40,7 @@ func HandleHelp(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		"/start - Start the bot\n" +
 		"/help - Show this help menu\n" +
 		"/gacha - Get a random waifu\n" +
+		"/anu - Toggle anu\n" +
 		"/profile - View your profile (coming soon)\n" +
 		"/collection - View your waifu collection (coming soon)"
 

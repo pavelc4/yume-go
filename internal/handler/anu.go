@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -9,15 +11,26 @@ var anuUserPref = struct {
 }{m: make(map[int64]bool)}
 
 func HandleAnuToggleUser(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	uid := msg.From.ID
-	cur := anuUserPref.m[uid]
-	anuUserPref.m[uid] = !cur
+	userID := msg.From.ID
+	args := strings.TrimSpace(msg.CommandArguments())
 
-	status := "OFF"
-	if anuUserPref.m[uid] {
-		status = "ON"
+	if args == "status" {
+		if anuUserPref.m[userID] {
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "🤨"))
+		} else {
+			bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "😇"))
+		}
+		return
 	}
-	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Your anu mode is now "+status+"."))
+
+	cur := anuUserPref.m[userID]
+	anuUserPref.m[userID] = !cur
+
+	if anuUserPref.m[userID] {
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "🤨"))
+	} else {
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "😇"))
+	}
 }
 
 func IsUserAnuEnabled(uid int64) bool {
