@@ -12,6 +12,7 @@ type Config struct {
 	WaifuImURL   string
 	WaifuPicsURL string
 	WaifuItURL   string
+	WaifuWeights string
 }
 
 func Load() *Config {
@@ -23,6 +24,7 @@ func Load() *Config {
 		WaifuImURL:   getEnv("WAIFU_IM_URL", "https://api.waifu.im/search"),
 		WaifuPicsURL: getEnv("WAIFU_PICS_URL", "https://api.waifu.pics"),
 		WaifuItURL:   getEnv("WAIFU_IT_URL", "https://waifu.it/api/v4"),
+		WaifuWeights: getEnv("WAIFU_WEIGHTS", "waifu.im:1,waifu.pics:1,waifu.it:1"),
 	}
 
 }
